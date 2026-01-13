@@ -23,9 +23,12 @@ File: `run_video_arkit.py`
 Key outputs:
 - `hand_poses.jsonl`: one JSON record per video frame.
   - `camera_pose`: ARKit pose aligned by timestamp.
+  - `base_pose_se3`: camera/base pose in world frame (position + rotation matrix).
   - `hands`: list of detected hands with:
     - `joints_3d_cam`: 21 MANO joints in camera frame.
-    - `end_effector_pose`: palm-based 6-DoF pose (position + rotation matrix).
+    - `end_effector_pose_cam`: palm-based 6-DoF pose in camera frame.
+    - `end_effector_pose_world`: palm-based 6-DoF pose in world frame (if poses.csv provided).
+    - `end_effector_pose`: alias for `end_effector_pose_cam` (compat).
     - `keypoints_2d`: projected joints in image pixels (if intrinsics provided).
     - `scale`: applied scale factor (if enabled).
 - `renders/`: optional rendered JPG frames with boxes and axes.
@@ -70,6 +73,61 @@ python make_action_chunks.py \
   --stride 1
 ```
 
+## Script 3: LeRobot v2.1 conversion
+File: `convert_jsonl_to_lerobot_v21.py`
+
+This converts `hand_poses.jsonl` + the source video into a LeRobot v2.1 dataset
+(per-episode parquet + mp4) with absolute state vectors and validity masks.
+By default, videos are re-encoded to H.264 for browser playback (requires `ffmpeg`).
+
+Example:
+```bash
+python convert_jsonl_to_lerobot_v21.py \
+  --input /home/zxwang/repos/ego_centric_video_processing/resources/recording_3/wilor_out/hand_poses.jsonl \
+  --video /home/zxwang/repos/ego_centric_video_processing/resources/recording_3/video.mp4 \
+  --output /home/zxwang/repos/ego_centric_video_processing/resources/recording_3/lerobot_out \
+  --fps 30
+```
+
+Notes:
+- Use `--video_codec h264` (default) for browser-compatible mp4 output.
+- If `ffmpeg` is not on PATH, pass `--ffmpeg_path /path/to/ffmpeg`.
+
+## Script 4: Delta verification
+File: `verify_deltas.py`
+
+This checks round-trip reconstruction from chunk-relative deltas and reports
+translation/rotation error stats.
+
+Example:
+```bash
+python verify_deltas.py \
+  --input /home/zxwang/repos/ego_centric_video_processing/resources/recording_3/wilor_out/hand_poses.jsonl \
+  --horizon 10 \
+  --stride 1
+```
+
+Interpreting results:
+- `round_trip_translation` / `round_trip_rotation` should be near zero (numerical noise). If these are large, the
+  transform math or frame alignment is wrong.
+- `delta_translation_norm` and `delta_rotation_angle` report per-step motion magnitudes. Large spikes usually
+  indicate missing detections or resampling jumps; check frame rate and segment boundaries if you see them.
+
+## Visualize the LeRobot dataset
+LeRobot includes an HTML viewer that can serve local datasets.
+
+Example:
+```bash
+/home/zxwang/miniconda3/envs/lerobot/bin/python \
+  /home/zxwang/repos/lerobot/src/lerobot/scripts/visualize_dataset_html.py \
+  --repo-id local/lerobot_out_v21_h264 \
+  --root /home/zxwang/repos/ego_centric_video_processing/resources/recording_3/lerobot_out_v21_h264 \
+  --serve 1 \
+  --host 127.0.0.1 \
+  --port 9090
+```
+
+Then open `http://127.0.0.1:9090` in your browser.
+
 ## Dependencies
 Follow the main `README.md` for WiLoR setup, pretrained models, and MANO model placement.
-

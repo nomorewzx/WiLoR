@@ -3,6 +3,8 @@ numpy==1.26.4
 opencv-python==4.8.1.78
 scikit-image==0.21.0
 pandas==2.0.3
+pyarrow==14.0.2
+datasets==2.19.1
 
 # rendering / geometry
 pyrender==0.1.45

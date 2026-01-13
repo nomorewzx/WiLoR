@@ -129,6 +129,28 @@ def compute_end_effector_pose(joints_cam: np.ndarray) -> Optional[Dict[str, List
     return {"position": palm.tolist(), "rotation_matrix": rot.tolist()}
 
 
+def quat_to_rotmat(qx: float, qy: float, qz: float, qw: float) -> np.ndarray:
+    xx, yy, zz = qx * qx, qy * qy, qz * qz
+    xy, xz, yz = qx * qy, qx * qz, qy * qz
+    wx, wy, wz = qw * qx, qw * qy, qw * qz
+    return np.array(
+        [
+            [1 - 2 * (yy + zz), 2 * (xy - wz), 2 * (xz + wy)],
+            [2 * (xy + wz), 1 - 2 * (xx + zz), 2 * (yz - wx)],
+            [2 * (xz - wy), 2 * (yz + wx), 1 - 2 * (xx + yy)],
+        ],
+        dtype=np.float64,
+    )
+
+
+def compose_pose(
+    base_rot: np.ndarray, base_t: np.ndarray, local_rot: np.ndarray, local_t: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray]:
+    world_rot = base_rot @ local_rot
+    world_t = base_rot @ local_t + base_t
+    return world_rot, world_t
+
+
 def draw_axes(
     img_bgr: np.ndarray,
     origin_cam: np.ndarray,
@@ -323,6 +345,7 @@ def main() -> None:
                             hand_entry["keypoints_2d"] = kpts_2d.tolist()
                         end_eff = compute_end_effector_pose(joints_cam)
                         if end_eff is not None:
+                            hand_entry["end_effector_pose_cam"] = end_eff
                             hand_entry["end_effector_pose"] = end_eff
                         hands_out.append(hand_entry)
                         if render_img is not None and intrinsics:
@@ -359,11 +382,35 @@ def main() -> None:
                     after = pose_times[i]
                     pose_idx = i - 1 if (t_video - before) <= (after - t_video) else i
                 pose_row = poses[pose_idx]
+            base_pose_se3 = None
+            if pose_row is not None:
+                base_rot = quat_to_rotmat(
+                    pose_row["qx"],
+                    pose_row["qy"],
+                    pose_row["qz"],
+                    pose_row["qw"],
+                )
+                base_pose_se3 = {
+                    "position": [pose_row["tx"], pose_row["ty"], pose_row["tz"]],
+                    "rotation_matrix": base_rot.tolist(),
+                }
+                for hand in hands_out:
+                    end_eff_cam = hand.get("end_effector_pose_cam")
+                    if not end_eff_cam:
+                        continue
+                    local_rot = np.array(end_eff_cam["rotation_matrix"], dtype=np.float64)
+                    local_t = np.array(end_eff_cam["position"], dtype=np.float64)
+                    world_rot, world_t = compose_pose(base_rot, np.array(base_pose_se3["position"]), local_rot, local_t)
+                    hand["end_effector_pose_world"] = {
+                        "position": world_t.tolist(),
+                        "rotation_matrix": world_rot.tolist(),
+                    }
             record = {
                 "frame_index": frame_idx,
                 "time_ms": frame_time_ms,
                 "camera_pose_index": pose_idx,
                 "camera_pose": pose_row,
+                "base_pose_se3": base_pose_se3,
                 "hands": hands_out,
             }
             out_f.write(json.dumps(record) + "\n")

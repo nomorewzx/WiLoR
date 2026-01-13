@@ -43,8 +43,8 @@
   - Use the paper’s human action definition:
       - Left hand 6‑DoF
       - Right hand 6‑DoF
-      - Base 6‑DoF
-        → total 18 dims
+      - Base 2‑DoF
+        → total 14 dims
   - Use per‑frame delta actions (relative transforms from t to t+1).
     This matches how pi0 models are trained (delta actions), so no extra transform needed.
 
