@@ -7,3 +7,4 @@ __pycache__/
 mano_data/MANO_RIGHT.pkl
 pretrained_models/*.pt
 pretrained_models/*.ckpt
+.hf_cache/

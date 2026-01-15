@@ -24,8 +24,5 @@ You will need to install ''pytubefix'' or any similar package to download YouTub
 ```
 pip install -Iv pytubefix==8.12.2
 ```
-You can then run the following command to download the corresponding train/test images: 
-```
-python download_videos.py --mode {train/test}
-```
+This repository does not include a downloader script; use your own tooling to fetch the videos and extract the frames.
 Please make sure that the data are downloaded in the same directory. 

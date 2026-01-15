@@ -50,6 +50,8 @@ conda activate wilor
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu117
 # Install requirements
 pip install -r requirements.txt
+# Install chumpy from source (pip package is deprecated and fails to build)
+pip install git+https://github.com/mattloper/chumpy.git --no-build-isolation
 ```
 Download the pretrained models using: 
 ```bash
@@ -63,6 +65,9 @@ Note that MANO model falls under the [MANO license](https://mano.is.tue.mpg.de/l
 ```bash
 python demo.py --img_folder demo_img --out_folder demo_out --save_mesh 
 ```
+## Pipeline
+The ARKit video processing pipeline and LeRobot conversion scripts live in the
+separate `egoview_h2r_pipeline` repository.
 ## Start a local gradio demo
 You can start a local demo for inference by running:
 ```bash

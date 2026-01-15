@@ -1,3 +1,6 @@
+# torch build for RTX 50-series (sm_120)
+torch==2.11.0.dev20260113+cu128
+
 # core numeric / vision
 numpy==1.26.4
 opencv-python==4.8.1.78

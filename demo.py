@@ -5,13 +5,21 @@ import os
 import cv2
 import numpy as np
 import json
+import dill
 from typing import Dict, Optional
 
 from wilor.models import WiLoR, load_wilor
 from wilor.utils import recursive_to
 from wilor.datasets.vitdet_dataset import ViTDetDataset, DEFAULT_MEAN, DEFAULT_STD
 from wilor.utils.renderer import Renderer, cam_crop_to_full
-from ultralytics import YOLO 
+from ultralytics import YOLO
+from ultralytics.nn.tasks import PoseModel
+
+torch.serialization.add_safe_globals([
+    PoseModel,
+    dill._dill._load_type,
+    torch.nn.modules.container.Sequential,
+])
 LIGHT_PURPLE=(0.25098039,  0.274117647,  0.65882353)
 
 def main():
@@ -26,7 +34,17 @@ def main():
 
     # Download and load checkpoints
     model, model_cfg = load_wilor(checkpoint_path = './pretrained_models/wilor_final.ckpt' , cfg_path= './pretrained_models/model_config.yaml')
-    detector = YOLO('./pretrained_models/detector.pt')
+    # Ultralytics checkpoints are full pickles; force weights_only=False for trusted file.
+    _torch_load = torch.load
+    try:
+        def _torch_load_trusted(*args, **kwargs):
+            kwargs.setdefault("weights_only", False)
+            return _torch_load(*args, **kwargs)
+
+        torch.load = _torch_load_trusted
+        detector = YOLO('./pretrained_models/detector.pt')
+    finally:
+        torch.load = _torch_load
     # Setup the renderer
     renderer = Renderer(model_cfg, faces=model.mano.faces)
     renderer_side = Renderer(model_cfg, faces=model.mano.faces)
